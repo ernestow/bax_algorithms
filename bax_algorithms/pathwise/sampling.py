@@ -126,7 +126,7 @@ def draw_product_kernel_post_paths(model, n_samples, cpu=True):
     ) - product_kernel_prior_paths(train_x)
     prior_residual -= sigma * torch.randn_like(prior_residual)
 
-    Lnn = torch.cholesky(K.to_dense())
+    Lnn = torch.linalg.cholesky(K.to_dense())
     batched_lnn = torch.stack([Lnn] * n_samples)
     batched_lnnt = torch.stack([Lnn.T] * n_samples)
 
@@ -208,7 +208,7 @@ def draw_linear_product_kernel_post_paths(model, n_samples, cpu=True):
     ) - linear_product_kernel_prior_paths(train_x)
     prior_residual -= sigma * torch.randn_like(prior_residual)
 
-    Lnn = torch.cholesky(K.to_dense())
+    Lnn = torch.linalg.cholesky(K.to_dense())
     batched_lnn = torch.stack([Lnn] * n_samples)
     batched_lnnt = torch.stack([Lnn.T] * n_samples)
 
