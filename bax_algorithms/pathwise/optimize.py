@@ -173,6 +173,6 @@ class DifferentialEvolution(VirtualOptimizer):
         Get bounds for virtual optimization (may not be the same as bounds passed to optimizer).
         """
         if optimization_indeces is not None:
-            return np.tile(bounds[..., optimization_indeces].numpy().T, (n_samples, 1))
+            return np.tile(bounds[..., optimization_indeces].detach().cpu().numpy().T, (n_samples, 1))
         else:
-            return np.tile(bounds.numpy().T, (n_samples, 1))
+            return np.tile(bounds.detach().cpu().numpy().T, (n_samples, 1))
