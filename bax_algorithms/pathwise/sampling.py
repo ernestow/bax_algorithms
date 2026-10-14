@@ -13,7 +13,7 @@ def draw_poly_kernel_prior_paths(
 ):  # poly_kernel is a scaled polynomial kernel
     c = poly_kernel.offset
     degree = poly_kernel.power
-    ws = torch.randn(size=[n_samples, 1, degree + 1], device=c.device)
+    ws = torch.randn(size=[n_samples, 1, degree + 1], device=c.device, dtype=c.dtype)
 
     def paths(xs):
         if (
@@ -49,13 +49,13 @@ def draw_product_kernel_prior_paths(model, n_samples):
         model.covar_module.base_kernel.kernels[matern_idx].active_dims
     )
     # add assert matern
-    matern_covar_module.active_dims = torch.tensor([i for i in range(len(matern_dims))])
-    matern_covar_module = gpytorch.kernels.ScaleKernel(matern_covar_module)
+    matern_covar_module.active_dims = torch.arange(len(matern_dims), device=model.train_inputs[0].device)
+    matern_covar_module = gpytorch.kernels.ScaleKernel(matern_covar_module).to(model.train_inputs[0])
     matern_covar_module.outputscale = copy.copy(model.covar_module.outputscale.detach())
 
-    mean_module = gpytorch.means.ZeroMean()
+    mean_module = gpytorch.means.ZeroMean().to(model.train_inputs[0])
 
-    likelihood = gpytorch.likelihoods.GaussianLikelihood().cpu()
+    likelihood = gpytorch.likelihoods.GaussianLikelihood().to(model.train_inputs[0])
     likelihood.noise = copy.copy(model.likelihood.noise.detach()) + 1.0e-6
 
     outcome_transform = None
@@ -66,9 +66,9 @@ def draw_product_kernel_prior_paths(model, n_samples):
 
     matern_model = SingleTaskGP(
         train_X=torch.tensor(
-            [[0.0] * (ndim - 1)], device=model.train_inputs[0].device
+            [[0.0] * (ndim - 1)], device=model.train_inputs[0].device, dtype=model.train_inputs[0].dtype
         ),  # add index specification
-        train_Y=torch.tensor([[0.0]], device=model.train_inputs[0].device),
+        train_Y=torch.zeros((1, 1), device=model.train_inputs[0].device, dtype=model.train_inputs[0].dtype),
         likelihood=likelihood,
         mean_module=mean_module,
         covar_module=matern_covar_module,
@@ -119,7 +119,7 @@ def draw_product_kernel_post_paths(model, n_samples, cpu=True):
 
     sigma = torch.sqrt(model.likelihood.noise[0])
 
-    K = Knn + sigma**2 * torch.eye(Knn.shape[0], device=Knn.device)
+    K = Knn + sigma**2 * torch.eye(Knn.shape[0], device=Knn.device, dtype=Knn.dtype)
 
     prior_residual = train_y.repeat(n_samples, 1, 1).reshape(
         n_samples, -1
@@ -141,7 +141,7 @@ def draw_product_kernel_post_paths(model, n_samples, cpu=True):
         if model.input_transform is not None:
             xs = model.input_transform(xs)
 
-        K_update = model.covar_module(train_x, xs.double())
+        K_update = model.covar_module(train_x, xs.to(train_x))
 
         update = torch.matmul(v_t, K_update)
         update = update.reshape(n_samples, -1)
@@ -201,7 +201,7 @@ def draw_linear_product_kernel_post_paths(model, n_samples, cpu=True):
 
     sigma = torch.sqrt(model.likelihood.noise[0])
 
-    K = Knn + sigma**2 * torch.eye(Knn.shape[0])
+    K = Knn + sigma**2 * torch.eye(Knn.shape[0], device=Knn.device, dtype=Knn.dtype)
 
     prior_residual = train_y.repeat(n_samples, 1, 1).reshape(
         n_samples, -1
@@ -223,7 +223,7 @@ def draw_linear_product_kernel_post_paths(model, n_samples, cpu=True):
         if model.input_transform is not None:
             xs = model.input_transform(xs)
 
-        K_update = model.covar_module(train_x, xs.double())
+        K_update = model.covar_module(train_x, xs.to(train_x))
 
         update = torch.matmul(v_t, K_update)
         update = update.reshape(n_samples, -1)
